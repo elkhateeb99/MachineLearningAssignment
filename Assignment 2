@@ -1,1 +1,102 @@
+import numpy as np, pandas as pd, seaborn as sns, matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.datasets import make_moons
+from sklearn.cluster import KMeans
+Kmeans = pd.read_csv("Customer data.csv")
+[row,col]=np.shape(Kmeans)
+New_Kmeans=Kmeans.iloc[:,1:col]
+Customer_Data=pd.DataFrame(New_Kmeans).to_numpy()
+wcss_list=[]
+k=5
+c=0
 
+for i in range(1, 11):  
+    Kmeans1 = KMeans(n_clusters=i)  
+    Kmeans1.fit(Customer_Data)  
+    wcss_list.append(Kmeans1.inertia_) 
+plt.figure()
+plt.plot(range(1, 11), wcss_list)  
+plt.title('The Elobw Method Graph')  
+plt.xlabel('Number of clusters(k)')  
+plt.ylabel('wcss_list')  
+plt.show()
+Centroids=np.zeros([row,col])
+Centroids_r=Customer_Data[np.random.choice(row,k,replace=False)]
+def GUC_Distance ( Centroids_r, Data_points, Distance_Type ):
+    Eucledian_Distance=np.zeros([row,k])
+    Avg_Customers=np.zeros([row,1])
+    Avg_Centers=np.zeros([k,1])
+    Customer_Data_Updated=np.zeros([row,1])
+    Centroids_Updated=np.zeros([k,1])
+    diff_Centroids=np.zeros([k,col-1])
+    diff_Customer_Data=np.zeros([row,col-1])
+    num=np.zeros([row,k])
+    den=np.zeros([row,k])
+    if Distance_Type=='Eucledian distance':
+        for i in range(k):    
+            Eucledian_Distance[:,i] = ((Customer_Data-Centroids_r[i])**2).sum(axis=1)
+            Cluster_Distance=Eucledian_Distance
+    else:
+        Avg_Customers=np.average(Customer_Data,axis=1)
+        Avg_Centers=np.average(Centroids_r,axis=1)
+        for l in range(row):
+           diff_Customer_Data[l]=Customer_Data[l]-Avg_Customers[l] 
+       
+        for s in range(k):
+           diff_Centroids[s]=Centroids_r[s]-Avg_Centers[s]
+        for a in range(row):
+           Customer_Data_Updated[a]=((Customer_Data[a]-Avg_Customers[a])**2).sum()
+        for n in range(k):
+           Centroids_Updated[n]=((Centroids_r[n]-Avg_Centers[n])**2).sum()
+        for w in range(k):
+           for v in range(row): 
+               num[v,w]=(diff_Customer_Data[v]* diff_Centroids[w]).sum()
+               den[v,w]=np.sqrt(Customer_Data_Updated[v]*Centroids_Updated[w])
+        Cluster_Distance=1-(num/den)
+    return Cluster_Distance
+
+def GUC_Kmean ( Customer_Data,k,Distance_Type ):
+    U_Cluster=np.zeros(k)
+    Sum_Clusters=np.zeros([k,col-1])
+    Centers_N=np.zeros([k,col-1])
+    Dist=0
+    Dis_T=-5
+    for r in range(100):
+        Centroids_r=Customer_Data[np.random.choice(row,k,replace=False)]
+        while True:
+            Distance=GUC_Distance ( Centroids_r, Customer_Data,'Eucledian distance')
+            Min_i=np.argmin(Distance,axis=1)
+            Min_Dis=np.min(Distance,axis=1)
+            Final_Cluster_Distance=Min_Dis
+            for c in range(k):
+                for x in range(row):
+                    if Min_i[x]==c:
+                        Dist=Dist+((((Customer_Data[x]-Centroids_r[c])**2)).sum())
+                        U_Cluster[c]=U_Cluster[c]+1
+                        Sum_Clusters[c]=Sum_Clusters[c]+Customer_Data[x]
+                Centers_N[c]=Sum_Clusters[c]/U_Cluster[c]
+            Dist=Dist/row
+            if Dist==Dis_T:
+                break
+            else:
+                Dis_T=Dist
+            if r==0:
+                Min_d=Dist
+            if Dist<Min_d:
+                Min_d=Dist
+            Centroids_r=Centers_N
+            return [Final_Cluster_Distance, Min_d,Min_i]
+         
+G=GUC_Kmean ( Customer_Data,k,'Eucledian distance')
+
+(Euc,cost,m)=GUC_Kmean(Customer_Data, k, 'Eucledian distance')
+df = pd.DataFrame(dict(x=Customer_Data[:,2], y=Customer_Data[:,4], label=m.astype(int)))
+colors = {0:'blue', 1:'orange', 2:'green',3:'red',4:'olive',5:'yellow',6:'pink'}
+fig, ax = plt.subplots(figsize=(8, 8))
+grouped = df.groupby('label')
+for key, group in grouped:
+    group.plot(ax=ax, kind='scatter', x='x', y='y', label=key, color=colors[key])
+ax.scatter(Centroids_r[:, 2],Centroids_r[:, 4], marker='*', s=300, c='#ff2222')
+plt.xlabel('feature_1')
+plt.ylabel('feature_2')
+plt.show()
